@@ -38,7 +38,7 @@ graph TB
         WebUI -->|http://stable-diffusion:7860| SD
     end
 
-    subgraph GPU["NVIDIA RTX 3070 Laptop · 8 GB VRAM"]
+    subgraph GPU["NVIDIA RTX 3070TI Laptop · 8 GB VRAM"]
         VRAM[Shared VRAM pool]
     end
 
