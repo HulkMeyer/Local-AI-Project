@@ -1,0 +1,33 @@
+title: Local AI Stack
+description: Self-hosted multi-model AI lab on consumer hardware (RTX 3070 8GB)
+theme: jekyll-theme-cayman
+
+# GitHub Pages
+url: ""
+baseurl: ""
+
+# Markdown processing
+markdown: kramdown
+highlighter: rouge
+kramdown:
+  input: GFM
+  syntax_highlighter: rouge
+
+# Site navigation — the order things appear in the GitHub Pages header
+header_pages:
+  - SETUP_GUIDE.md
+  - docs/06-vram-management.md
+  - docs/09-inference-engines-comparison.md
+  - docs/10-frontends-comparison.md
+  - docs/07-troubleshooting.md
+
+# Things to leave out of the build
+exclude:
+  - Gemfile
+  - Gemfile.lock
+  - vendor
+  - scripts
+  - .gitignore
+  - LICENSE
+  - docker-compose.yml
+  - assets/screenshots

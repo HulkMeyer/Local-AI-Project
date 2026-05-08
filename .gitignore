@@ -1,0 +1,36 @@
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+
+# Logs
+*.log
+nohup.out
+
+# Local environment overrides (so secrets/keys don't leak into the repo)
+.env
+.env.local
+docker-compose.override.yml
+
+# Jekyll build output
+_site/
+.jekyll-cache/
+.jekyll-metadata
+Gemfile.lock
+
+# Model files — these are huge and should never be committed.
+# Reference them in install-checkpoint.sh, don't embed them.
+*.safetensors
+*.ckpt
+*.gguf
+*.bin
+*.pth
+
+# Python (in case any analysis notebooks creep in)
+__pycache__/
+*.pyc
+.venv/
+venv/
+.ipynb_checkpoints/
