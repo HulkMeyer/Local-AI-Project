@@ -20,25 +20,25 @@ All services share a single GPU through NVIDIA Container Toolkit, talk to each o
 
 ```mermaid
 graph TB
-    Browser[Browserlocalhost:3000]
+    Browser[Browser<br/>localhost:3000]
 
     subgraph Host["Windows 11 Host"]
-        Docker[Docker DesktopWSL2 backend]
+        Docker[Docker Desktop<br/>WSL2 backend]
     end
 
     subgraph WSL["WSL2 / Ubuntu"]
-        Ollama[Ollama Server:11434]
-        Models[(Local LLMs~30 GB)]
+        Ollama[Ollama Server<br/>:11434]
+        Models[(Local LLMs<br/>~30 GB)]
         Ollama --- Models
     end
 
     subgraph Net["Docker network: ai-stack"]
-        WebUI[Open WebUI:8080 → :3000]
-        SD[Stable Diffusion:7860]
+        WebUI[Open WebUI<br/>:8080 → :3000]
+        SD[Stable Diffusion<br/>:7860]
         WebUI -->|http://stable-diffusion:7860| SD
     end
 
-    subgraph GPU["NVIDIA RTX 3070TI Laptop · 8 GB VRAM"]
+    subgraph GPU["NVIDIA RTX 3070 Laptop · 8 GB VRAM"]
         VRAM[Shared VRAM pool]
     end
 
@@ -77,6 +77,18 @@ docker compose up -d
 
 Then open `http://localhost:3000` and create your admin account. See [SETUP_GUIDE.md](./SETUP_GUIDE.md) for the full walkthrough.
 
+## Architectural Decisions
+
+The interesting questions when building a local AI stack aren't which buttons to click — they're *why this engine, why this frontend, why this network topology*. Two deep dives cover the defensible choices behind the stack:
+
+- **[Inference engines: Why Ollama (and when you'd want vLLM, llama.cpp, or TGI)](./docs/09-inference-engines-comparison.md)** — what an inference engine actually does, where Ollama wins for single-user dev, where vLLM wins for production multi-tenant serving, and the specific thresholds that would trigger a migration.
+- **[Frontends: Why Open WebUI (and what else I evaluated)](./docs/10-frontends-comparison.md)** — Open WebUI vs. LibreChat vs. AnythingLLM vs. Lobe Chat vs. Hollama vs. raw API, the feature surface that actually matters for a working dev environment, and the tradeoffs that come with Open WebUI's weight.
+
+Two more docs cover the engineering thinking behind the harder operational decisions:
+
+- **[VRAM Management on 8 GB](./docs/06-vram-management.md)** — the budget math, what fits with what, why aggressive quantization is a worse tradeoff than people assume, and the workflow encoded in `manage-vram.sh`.
+- **[Troubleshooting](./docs/07-troubleshooting.md)** — every failure mode hit during the build, with the actual root cause and fix. The `SD_WEBUI_VARIANT: unbound variable` crash, the case-sensitive folder bug, the `host.docker.internal` DNS failure, and more.
+
 ## What's Inside
 
 ```
@@ -93,7 +105,9 @@ local-ai-stack/
 │   ├── 05-custom-models-loras.md      adding SD checkpoints + LoRAs
 │   ├── 06-vram-management.md          the 8 GB game — what fits with what
 │   ├── 07-troubleshooting.md          every failure mode I hit, with fixes
-│   └── 08-architecture.md             design decisions and tradeoffs
+│   ├── 08-architecture.md             design decisions and tradeoffs
+│   ├── 09-inference-engines-comparison.md  Ollama vs vLLM vs llama.cpp vs TGI
+│   └── 10-frontends-comparison.md     Open WebUI vs LibreChat vs AnythingLLM
 ├── scripts/
 │   ├── setup-environment.sh           NVIDIA Container Toolkit + Ollama + deps
 │   ├── pull-models.sh                 idempotent model pulls
@@ -108,7 +122,7 @@ local-ai-stack/
 
 ## Why This Project Exists (Portfolio Context)
 
-Three things this demonstrates that most "I ran an LLM locally" repos don't:
+Four things this demonstrates that most "I ran an LLM locally" repos don't:
 
 1. **Multi-container orchestration with hardware constraints.** GPU passthrough through WSL2 to multiple containers sharing one 8 GB VRAM pool is non-trivial. The `docker-compose.yml` in this repo is the artifact of solving that problem — networks, volumes, runtime config, and the specific CLI flags that prevent OOM crashes when both containers are warm.
 
@@ -116,12 +130,15 @@ Three things this demonstrates that most "I ran an LLM locally" repos don't:
 
 3. **Operational thinking, not just install steps.** [VRAM management](./docs/06-vram-management.md) covers what models can be loaded simultaneously, when to call `ollama stop` to free memory before image generation, and which quantizations preserve coherence at the 8 GB ceiling. This is the kind of resource accounting that matters in production inference.
 
+4. **Defensible technical choices, not default-pick thinking.** The [inference engine](./docs/09-inference-engines-comparison.md) and [frontend](./docs/10-frontends-comparison.md) deep dives evaluate the alternatives at each layer of the stack, name the specific properties that tipped each decision, and document the thresholds that would trigger a migration. Hiring managers care less about which tool you picked and more about whether you can articulate *why*.
+
 ## Limitations (Honest)
 
 - **8 GB is the tightest constraint.** A 14B model and Stable Diffusion cannot be hot in VRAM at the same time. The `manage-vram.sh` script encodes the workaround, but a dual-GPU or 16+ GB setup would eliminate it.
 - **Aggressive quantization tradeoff.** Most LLMs in `pull-models.sh` are Q4_K_M. They're coherent and fast, but a Q8 or FP16 deployment on better hardware would noticeably improve nuanced reasoning.
 - **Windows-host specific.** WSL2 + Docker Desktop is the assumed substrate. Native Linux works with minor changes; macOS is out of scope (no NVIDIA).
 - **No production hardening.** No TLS, no auth proxy, no observability stack. This is a single-user dev environment, and the docs are explicit about that.
+- **Single-user inference engine.** Ollama is the right answer for this stack but wouldn't be for production multi-tenant serving — see the [inference engine deep dive](./docs/09-inference-engines-comparison.md) for the threshold analysis and migration path to vLLM.
 
 ## License
 
