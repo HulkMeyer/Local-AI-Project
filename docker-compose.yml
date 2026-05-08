@@ -1,0 +1,95 @@
+# Local AI Stack — Open WebUI + Stable Diffusion (SD.Next)
+#
+# Consolidates the manual `docker run` invocations from the original setup into
+# a single declarative config. Both services share an `ai-stack` bridge network
+# so they resolve each other by container name (e.g. `http://stable-diffusion:7860`)
+# without needing host.docker.internal hacks.
+#
+# Bring up:    docker compose up -d
+# Tear down:   docker compose down
+# Tail logs:   docker compose logs -f stable-diffusion
+#
+# Volumes persist across `down`/`up`. Use `docker compose down -v` to wipe.
+
+services:
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:cuda
+    container_name: open-webui
+    restart: always
+    ports:
+      - "3000:8080"
+    volumes:
+      - open-webui:/app/backend/data
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      # Ollama runs on the WSL host, not in a container — talk to it via the host bridge
+      - OLLAMA_BASE_URL=http://host.docker.internal:11434
+      # Set WEBUI_AUTH=False for single-user dev only; leave True if multi-user
+      - WEBUI_AUTH=True
+    networks:
+      - ai-stack
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  stable-diffusion:
+    image: ghcr.io/neggles/sd-webui-docker:latest
+    container_name: stable-diffusion
+    restart: unless-stopped
+    ports:
+      - "7860:7860"
+    volumes:
+      - sd-models:/app/models
+      - sd-outputs:/app/outputs
+    environment:
+      # SD_WEBUI_VARIANT is REQUIRED — the image refuses to start without it.
+      # `vladmandic` (SD.Next) is more memory-efficient than vanilla A1111 on 8 GB cards.
+      - SD_WEBUI_VARIANT=vladmandic
+      # CLI flags tuned for 8 GB VRAM:
+      #   --api              expose REST API for Open WebUI integration
+      #   --listen           bind 0.0.0.0 so the API is reachable from the network
+      #   --xformers         memory-efficient attention (~30% VRAM reduction)
+      #   --medvram          aggressive model offload between steps
+      #   --opt-channelslast NVIDIA Ampere optimization (~20% throughput boost)
+      #   --no-half-vae      prevents black-image bugs at higher resolutions
+      #   --skip-torch-cuda-test  some 3070 Laptops fail the initial test under WSL
+      - CLI_ARGS=--api --listen --xformers --medvram --opt-channelslast --no-half-vae --skip-torch-cuda-test
+    networks:
+      - ai-stack
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:7860/sdapi/v1/sd-models"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 300s   # first boot downloads ~5 GB of base weights
+
+volumes:
+  open-webui:
+    name: open-webui
+  sd-models:
+    name: sd-models
+  sd-outputs:
+    name: sd-outputs
+
+networks:
+  ai-stack:
+    name: ai-stack
+    driver: bridge
