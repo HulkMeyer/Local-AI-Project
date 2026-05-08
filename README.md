@@ -38,7 +38,7 @@ graph TB
         WebUI -->|http://stable-diffusion:7860| SD
     end
 
-    subgraph GPU["NVIDIA RTX 3070 Laptop · 8 GB VRAM"]
+    subgraph GPU["NVIDIA RTX 3070TI Laptop · 8 GB VRAM"]
         VRAM[Shared VRAM pool]
     end
 
@@ -52,7 +52,7 @@ graph TB
 
 | Component | Spec | Notes |
 |---|---|---|
-| GPU | RTX 3070 Laptop (8 GB VRAM) | Tightest constraint — every choice flows from this |
+| GPU | RTX 3070TI Laptop (8 GB VRAM) | Tightest constraint — every choice flows from this |
 | OS | Windows 11 + WSL2 (Ubuntu 24.04) | Verified on build 22631+ |
 | Docker | Docker Desktop with WSL2 backend | NVIDIA Container Toolkit installed inside WSL |
 | Disk | ~50 GB free | Models + checkpoints + container images |
